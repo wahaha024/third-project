@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>周易电子摇卦 · 铜钱起卦</title>
+<style>
+  :root {
+    --ink: #333;
+    --brown: #5c3c24;
+    --brown-2: #8b5a2b;
+    --red: #c0392b;
+    --paper: #f8f5f0;
+    --line: #efe6da;
+    --muted: #8a7c6d;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: "Songti SC", "SimSun", "Noto Serif SC", "Source Han Serif SC", serif;
+    background: var(--paper);
+    color: var(--ink);
+    padding: 32px 18px 44px;
+    max-width: 720px;
+    margin: 0 auto;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+  h1 {
+    text-align: center;
+    font-size: clamp(24px, 6vw, 30px);
+    letter-spacing: 6px;
+    color: var(--brown);
+    margin-bottom: 6px;
+  }
+  .intro {
+    text-align: center;
+    color: var(--muted);
+    font-size: 14px;
+    letter-spacing: 1px;
+    margin-bottom: 26px;
+  }
+  .btn-box { text-align: center; margin-bottom: 26px; }
+  #shakeBtn {
+    font-family: inherit;
+    font-size: 18px;
+    letter-spacing: 3px;
+    padding: 12px 38px;
+    color: #fff;
+    background: var(--brown-2);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #6b441f;
+    transition: background-color .2s, transform .08s, box-shadow .08s;
+  }
+  #shakeBtn:hover:not(:disabled) { background: #7a4d24; }
+  #shakeBtn:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #6b441f; }
+  #shakeBtn:disabled { background: #c2ab92; box-shadow: 0 3px 0 #ab967d; cursor: progress; }
+  #shakeBtn:focus-visible { outline: 3px solid #d8b98d; outline-offset: 3px; }
+
+  .result-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 24px 22px;
+    box-shadow: 0 2px 14px rgba(92, 60, 36, .1);
+    min-height: 320px;
+  }
+  .result-card.is-shaking { animation: shake .4s ease-in-out; }
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-6px); }
+    75% { transform: translateX(6px); }
+  }
+
+  .empty-tip { text-align: center; color: #aaa; margin-top: 110px; font-size: 15px; }
+  .line-legend {
+    margin: 16px 0 0;
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 1px;
+  }
+
+  /* ---------- 卦象 ---------- */
+  .hexagram {
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;   /* 从下往上排：初爻在下，上爻在上 */
+    gap: 10px;
+    min-height: 132px;
+    max-width: 340px;
+    margin: 0 auto;
+  }
+  .line-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    animation: line-in .26s ease-out;
+  }
+  @keyframes line-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .line-label {
+    flex: 0 0 36px;
+    text-align: right;
+    font-size: 12px;
+    color: #a8947c;
+    white-space: nowrap;
+    letter-spacing: 0;
+  }
+  .line-bars { display: flex; flex: 1 1 auto; gap: 14px; }
+  .bar {
+    flex: 1 1 0;
+    height: 12px;
+    border-radius: 2px;
+    background: var(--brown);
+  }
+  .line-row.is-moving .bar { background: var(--red); }
+  .move-mark {
+    flex: 0 0 14px;
+    font-size: 14px;
+    line-height: 1;
+    text-align: center;
+    color: var(--red);
+  }
+
+  /* ---------- 变卦小图 ---------- */
+  .hexagram.compact { min-height: 0; max-width: 120px; gap: 6px; margin: 0; }
+  .hexagram.compact .bar { height: 7px; }
+  .hexagram.compact .line-bars { gap: 8px; }
+
+  /* ---------- 解读信息 ---------- */
+  .info {
+    margin-top: 24px;
+    padding-top: 18px;
+    border-top: 1px solid var(--line);
+  }
+  .gua-head { display: flex; align-items: center; gap: 14px; }
+  .gua-glyph { font-size: 40px; line-height: 1; color: var(--brown); }
+  .gua-name { font-size: 20px; font-weight: 700; color: var(--brown); letter-spacing: 1px; }
+  .gua-name.small { font-size: 16px; }
+  .gua-seq {
+    display: inline-block;
+    margin-left: 8px;
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: 400;
+    letter-spacing: 0;
+    color: var(--muted);
+    background: #f4ede4;
+    border-radius: 10px;
+    vertical-align: 2px;
+  }
+  .gua-struct { font-size: 13px; color: var(--muted); margin-top: 2px; }
+
+  .detail { margin-top: 6px; }
+  .detail dt {
+    margin-top: 14px;
+    font-size: 14px;
+    font-weight: 700;
+    color: #704214;
+    letter-spacing: 1px;
+  }
+  .detail dd { margin-top: 2px; color: #444; }
+
+  .derived { margin-top: 20px; padding-top: 16px; border-top: 1px dashed var(--line); }
+  .derived-title { font-size: 14px; font-weight: 700; color: #704214; letter-spacing: 1px; }
+  .derived-body { display: flex; align-items: center; gap: 16px; margin-top: 10px; }
+  .derived-hex { flex: 0 0 auto; }
+  .derived-text { font-size: 14px; color: #555; margin-top: 2px; }
+
+  footer {
+    margin-top: 36px;
+    font-size: 13px;
+    color: #888;
+    line-height: 1.7;
+    text-align: center;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .result-card.is-shaking { animation: none; }
+    .line-row { animation: none; }
+    #shakeBtn { transition: none; }
+  }
+</style>
+</head>
+<body>
+  <h1>电子摇卦</h1>
+  <p class="intro">三枚铜钱，六次投掷，得本卦与变卦</p>
+
+  <div class="btn-box">
+    <button id="shakeBtn" type="button">开始摇卦</button>
+  </div>
+
+  <main class="result-card">
+    <div id="content" aria-live="polite">
+      <div class="empty-tip">点击上方按钮摇卦获取卦象</div>
+    </div>
+  </main>
+
+  <footer>
+    ⚠️ 免责声明：本项目仅为传统文化趣味演示网页，卦象解读仅供娱乐参考，不构成任何生活、投资、择业、医疗决策建议，请勿迷信。
+  </footer>
+
+  <noscript>
+    <p style="text-align:center;color:#c0392b;margin-top:20px;">本页面需要启用 JavaScript 才能摇卦。</p>
+  </noscript>
+
+<script>
+(function () {
+  "use strict";
+
+  /* =========================================================
+     一、基础数据
+     ========================================================= */
+
+  // 八卦：键为「自下而上」三爻的二进制串，1 = 阳爻，0 = 阴爻
+  // 例：震 ☳ 初爻为阳、上二爻为阴 => "100"
+  const TRIGRAMS = {
+    "111": { name: "乾", image: "天", glyph: "☰" },
+    "110": { name: "兑", image: "泽", glyph: "☱" },
+    "101": { name: "离", image: "火", glyph: "☲" },
+    "100": { name: "震", image: "雷", glyph: "☳" },
+    "011": { name: "巽", image: "风", glyph: "☴" },
+    "010": { name: "坎", image: "水", glyph: "☵" },
+    "001": { name: "艮", image: "山", glyph: "☶" },
+    "000": { name: "坤", image: "地", glyph: "☷" }
+  };
+
+  // 六十四卦索引（文王卦序）：[上卦, 下卦, 卦名]
+  const HEXAGRAMS = [
+    ["乾", "乾", "乾为天"], ["坤", "坤", "坤为地"],
+    ["坎", "震", "水雷屯"], ["艮", "坎", "山水蒙"],
+    ["坎", "乾", "水天需"], ["乾", "坎", "天水讼"],
+    ["坤", "坎", "地水师"], ["坎", "坤", "水地比"],
+    ["巽", "乾", "风天小畜"], ["乾", "兑", "天泽履"],
+    ["坤", "乾", "地天泰"], ["乾", "坤", "天地否"],
+    ["乾", "离", "天火同人"], ["离", "乾", "火天大有"],
+    ["坤", "艮", "地山谦"], ["震", "坤", "雷地豫"],
+    ["兑", "震", "泽雷随"], ["艮", "巽", "山风蛊"],
+    ["坤", "兑", "地泽临"], ["巽", "坤", "风地观"],
+    ["离", "震", "火雷噬嗑"], ["艮", "离", "山火贲"],
+    ["艮", "坤", "山地剥"], ["坤", "震", "地雷复"],
+    ["乾", "震", "天雷无妄"], ["艮", "乾", "山天大畜"],
+    ["艮", "震", "山雷颐"], ["兑", "巽", "泽风大过"],
+    ["坎", "坎", "坎为水"], ["离", "离", "离为火"],
+    ["兑", "艮", "泽山咸"], ["震", "巽", "雷风恒"],
+    ["乾", "艮", "天山遁"], ["震", "乾", "雷天大壮"],
+    ["离", "坤", "火地晋"], ["坤", "离", "地火明夷"],
+    ["巽", "离", "风火家人"], ["离", "兑", "火泽睽"],
+    ["坎", "艮", "水山蹇"], ["震", "坎", "雷水解"],
+    ["艮", "兑", "山泽损"], ["巽", "震", "风雷益"],
+    ["兑", "乾", "泽天夬"], ["乾", "巽", "天风姤"],
+    ["兑", "坤", "泽地萃"], ["坤", "巽", "地风升"],
+    ["兑", "坎", "泽水困"], ["坎", "巽", "水风井"],
+    ["兑", "离", "泽火革"], ["离", "巽", "火风鼎"],
+    ["震", "震", "震为雷"], ["艮", "艮", "艮为山"],
+    ["巽", "艮", "风山渐"], ["震", "兑", "雷泽归妹"],
+    ["震", "离", "雷火丰"], ["离", "艮", "火山旅"],
+    ["巽", "巽", "巽为风"], ["兑", "兑", "兑为泽"],
+    ["巽", "坎", "风水涣"], ["坎", "兑", "水泽节"],
+    ["巽", "兑", "风泽中孚"], ["震", "艮", "雷山小过"],
+    ["坎", "离", "水火既济"], ["离", "坎", "火水未济"]
+  ];
+
+  // 六十四卦文案：卦序、卦辞、趣味参考
+  const GUA_DATA = {
+    "乾为天": { seq: 1, guaci: "元亨利贞。", hint: "适合主动进取，把握机会，做事保持恒心，稳步推进目标。" },
+    "坤为地": { seq: 2, guaci: "元亨，利牝马之贞。君子有攸往，先迷后得主，利西南得朋，东北丧朋。安贞吉。", hint: "适合沉淀蓄力，多倾听少冒进，顺势而为，不宜强行推动事情。" },
+    "水雷屯": { seq: 3, guaci: "元亨，利贞。勿用有攸往，利建侯。", hint: "万事开头有阻滞，不必急于求成，打好基础更重要。" },
+    "山水蒙": { seq: 4, guaci: "亨。匪我求童蒙，童蒙求我。初筮告，再三渎，渎则不告。利贞。", hint: "适合学习、请教新知，保持虚心，不要固执己见。" },
+    "水天需": { seq: 5, guaci: "有孚，光亨，贞吉。利涉大川。", hint: "时机尚未成熟，耐心等候，做好准备，静待时机。" },
+    "天水讼": { seq: 6, guaci: "有孚窒，惕中吉，终凶。利见大人，不利涉大川。", hint: "容易有意见分歧，尽量避免争执，退让为宜。" },
+    "地水师": { seq: 7, guaci: "贞，丈人吉，无咎。", hint: "适合团队协作，听从稳重者建议，行事守规矩。" },
+    "水地比": { seq: 8, guaci: "吉。原筮，元永贞，无咎。不宁方来，后夫凶。", hint: "适合联络他人，维护关系，待人真诚友善。" },
+    "风天小畜": { seq: 9, guaci: "亨。密云不雨，自我西郊。", hint: "积蓄力量阶段，小有所得，还不到大举行动的时候。" },
+    "天泽履": { seq: 10, guaci: "履虎尾，不咥人，亨。", hint: "行事谨慎守礼，步步稳妥，不冒险逞强。" },
+    "地天泰": { seq: 11, guaci: "小往大来，吉亨。", hint: "沟通顺畅，氛围平和，适合推进计划。" },
+    "天地否": { seq: 12, guaci: "否之匪人，不利君子贞，大往小来。", hint: "暂时阻滞，沟通不畅，减少强求，守静为宜。" },
+    "天火同人": { seq: 13, guaci: "同人于野，亨。利涉大川，利君子贞。", hint: "适合结伴合作，求同存异，凝聚共识。" },
+    "火天大有": { seq: 14, guaci: "元亨。", hint: "收获可期，但不可骄傲自满，守住分寸。" },
+    "地山谦": { seq: 15, guaci: "亨，君子有终。", hint: "保持谦逊低调，待人宽厚，更容易得到助力。" },
+    "雷地豫": { seq: 16, guaci: "利建侯行师。", hint: "心情舒展，适合规划安排，但不要松懈放纵。" },
+    "泽雷随": { seq: 17, guaci: "元亨，利贞，无咎。", hint: "顺势而行，灵活变通，不必固执原定方案。" },
+    "山风蛊": { seq: 18, guaci: "元亨，利涉大川。先甲三日，后甲三日。", hint: "适合梳理旧问题，修正积弊，慢慢调整。" },
+    "地泽临": { seq: 19, guaci: "元亨，利贞。至于八月有凶。", hint: "稳步推进，用心关照身边人和事，循序渐进。" },
+    "风地观": { seq: 20, guaci: "盥而不荐，有孚颙若。", hint: "适合多观察、多思考，不急着下判断。" },
+    "火雷噬嗑": { seq: 21, guaci: "亨，利用狱。", hint: "遇到阻碍需要果断厘清矛盾，明辨是非。" },
+    "山火贲": { seq: 22, guaci: "亨。小利有攸往。", hint: "注重分寸与体面，修饰外在，根基为重。" },
+    "山地剥": { seq: 23, guaci: "不利有攸往。", hint: "宜收敛退守，保护已有成果，不宜扩张。" },
+    "地雷复": { seq: 24, guaci: "亨。出入无疾，朋来无咎。反复其道，七日来复，利有攸往。", hint: "转机慢慢显现，重新出发，修正之前的偏差。" },
+    "天雷无妄": { seq: 25, guaci: "元亨，利贞。其匪正有眚，不利有攸往。", hint: "行事踏实不妄想，守正而行，减少投机。" },
+    "山天大畜": { seq: 26, guaci: "利贞，不家食吉，利涉大川。", hint: "积累学识与能力，厚积薄发，等待时机。" },
+    "山雷颐": { seq: 27, guaci: "贞吉。观颐，自求口实。", hint: "养护身心，自给自足，慎重取舍。" },
+    "泽风大过": { seq: 28, guaci: "栋桡，利有攸往，亨。", hint: "局面压力偏大，不可冒进，寻找稳妥方案。" },
+    "坎为水": { seq: 29, guaci: "习坎，有孚维心亨，行有尚。", hint: "接连遇到困难，守住本心，稳步渡过难关。" },
+    "离为火": { seq: 30, guaci: "利贞，亨。畜牝牛吉。", hint: "依靠光明与真诚待人，借势而行，守柔。" },
+    "泽山咸": { seq: 31, guaci: "亨，利贞，取女吉。", hint: "感应相通，适合沟通交流，用心感受他人。" },
+    "雷风恒": { seq: 32, guaci: "亨，无咎，利贞，利有攸往。", hint: "贵在持之以恒，稳定坚持，不要频繁变动。" },
+    "天山遁": { seq: 33, guaci: "亨，小利贞。", hint: "形势不利时，懂得适时退让保全自己。" },
+    "雷天大壮": { seq: 34, guaci: "利贞。", hint: "力量充足，但切忌恃强冲动，守正克制。" },
+    "火地晋": { seq: 35, guaci: "康侯用锡马蕃庶，昼日三接。", hint: "逐步向上发展，踏实付出，会慢慢得到认可。" },
+    "地火明夷": { seq: 36, guaci: "利艰贞。", hint: "暂时晦暗，收敛锋芒，坚守本心静待好转。" },
+    "风火家人": { seq: 37, guaci: "利女贞。", hint: "注重秩序与责任，打理身边事务，和睦为先。" },
+    "火泽睽": { seq: 38, guaci: "小事吉。", hint: "想法有分歧，求大同存小异，不宜强求一致。" },
+    "水山蹇": { seq: 39, guaci: "利西南，不利东北；利见大人，贞吉。", hint: "前路多阻碍，不要独自硬扛，可以寻求建议。" },
+    "雷水解": { seq: 40, guaci: "利西南，无所往，其来复吉。有攸往，夙吉。", hint: "困局慢慢解开，积压的事情可以逐步处理。" },
+    "山泽损": { seq: 41, guaci: "有孚，元吉，无咎，可贞，利有攸往。曷之用，二簋可用享。", hint: "适当做减法，减少消耗，先付出再谈收获。" },
+    "风雷益": { seq: 42, guaci: "利有攸往，利涉大川。", hint: "适合增益自身与他人，主动付出，见善则迁。" },
+    "泽天夬": { seq: 43, guaci: "扬于王庭，孚号有厉。告自邑，不利即戎，利有攸往。", hint: "该决断时果断处理，但留有余地，不宜正面冲突。" },
+    "天风姤": { seq: 44, guaci: "女壮，勿用取女。", hint: "偶然相遇，注意分寸，不要被一时吸引打乱节奏。" },
+    "泽地萃": { seq: 45, guaci: "亨。王假有庙，利见大人，亨，利贞。用大牲吉，利有攸往。", hint: "适合汇聚人脉，凝聚力量，同心做事。" },
+    "地风升": { seq: 46, guaci: "元亨，用见大人，勿恤，南征吉。", hint: "循序渐进上升，根基扎实，稳步向上。" },
+    "泽水困": { seq: 47, guaci: "亨，贞，大人吉，无咎，有言不信。", hint: "资源受限，暂时窘迫，稳住心态，不做冲动决定。" },
+    "水风井": { seq: 48, guaci: "改邑不改井，无丧无得，往来井井。汔至，亦未繘井，羸其瓶，凶。", hint: "守住长久根本，持续沉淀，不要频繁更换方向。" },
+    "泽火革": { seq: 49, guaci: "己日乃孚，元亨，利贞，悔亡。", hint: "适合适度革新调整，时机成熟再做改变。" },
+    "火风鼎": { seq: 50, guaci: "元吉，亨。", hint: "建立新秩序，奠定根基，适合长期布局。" },
+    "震为雷": { seq: 51, guaci: "亨。震来虩虩，笑言哑哑。震惊百里，不丧匕鬯。", hint: "容易突发变动，保持警醒，临事不乱。" },
+    "艮为山": { seq: 52, guaci: "艮其背，不获其身，行其庭，不见其人，无咎。", hint: "该停则停，懂得节制，守住边界。" },
+    "风山渐": { seq: 53, guaci: "女归吉，利贞。", hint: "凡事循序渐进，不可急于求成，慢慢来。" },
+    "雷泽归妹": { seq: 54, guaci: "征凶，无攸利。", hint: "顺应本分，不要勉强促成事情，强求容易有遗憾。" },
+    "雷火丰": { seq: 55, guaci: "亨，王假之，勿忧，宜日中。", hint: "当下声势充足，但盛极宜守，不可铺张。" },
+    "火山旅": { seq: 56, guaci: "小亨，旅贞吉。", hint: "状态漂泊不定，行事谨慎低调，守住分寸。" },
+    "巽为风": { seq: 57, guaci: "小亨，利有攸往，利见大人。", hint: "谦逊顺从，灵活调整，顺势沟通。" },
+    "兑为泽": { seq: 58, guaci: "亨，利贞。", hint: "愉悦沟通，和气相待，适合交流分享。" },
+    "风水涣": { seq: 59, guaci: "亨。王假有庙，利涉大川，利贞。", hint: "松散局面慢慢散开，理清头绪，分散压力。" },
+    "水泽节": { seq: 60, guaci: "亨。苦节不可贞。", hint: "懂得节制规划，安排收支、时间，松紧适度。" },
+    "风泽中孚": { seq: 61, guaci: "豚鱼吉，利涉大川，利贞。", hint: "心怀诚信，真诚待人，守信为重。" },
+    "雷山小过": { seq: 62, guaci: "亨，利贞。可小事，不可大事。飞鸟遗之音，不宜上宜下，大吉。", hint: "小事可以灵活，大事不可越界，低调稳妥。" },
+    "水火既济": { seq: 63, guaci: "亨小，利贞。初吉终乱。", hint: "事情达成阶段性目标，但不可松懈，居安思危。" },
+    "火水未济": { seq: 64, guaci: "亨。小狐汔济，濡其尾，无攸利。", hint: "事情尚未完成，还差最后一步，谨慎收尾。" }
+  };
+
+  // 由上卦名 + 下卦名 => 卦名
+  const HEX_BY_TRIGRAMS = new Map();
+  for (const [up, low, name] of HEXAGRAMS) HEX_BY_TRIGRAMS.set(up + low, name);
+
+  /* =========================================================
+     二、数据自检（数据写错时直接在控制台报出来，避免"未匹配到卦象数据"）
+     ========================================================= */
+  (function selfCheck() {
+    const problems = [];
+    const names = new Set();
+
+    if (HEXAGRAMS.length !== 64) problems.push(`卦表共 ${HEXAGRAMS.length} 条，应为 64 条`);
+    if (HEX_BY_TRIGRAMS.size !== 64) problems.push(`八卦组合去重后 ${HEX_BY_TRIGRAMS.size} 组，应为 64 组`);
+
+    HEXAGRAMS.forEach(([up, low, name], i) => {
+      const u = Object.values(TRIGRAMS).find(t => t.name === up);
+      const l = Object.values(TRIGRAMS).find(t => t.name === low);
+      if (!u || !l) { problems.push(`第 ${i + 1} 条出现未知卦名：${up}/${low}`); return; }
+      if (names.has(name)) problems.push(`卦名重复：${name}`);
+      names.add(name);
+
+      // 卦名必须与上、下卦的"取象"一致，例如 上坎下震 => 水雷…
+      if (up === low) {
+        if (name !== `${up}为${u.image}`) problems.push(`卦名与卦象不符：${name}，应为 ${up}为${u.image}`);
+      } else if (name.slice(0, 2) !== `${u.image}${l.image}`) {
+        problems.push(`卦名与卦象不符：${name}，上${up}(${u.image})下${low}(${l.image}) 应为 ${u.image}${l.image}…`);
+      }
+
+      const d = GUA_DATA[name];
+      if (!d) problems.push(`缺少卦辞数据：${name}`);
+      else if (d.seq !== i + 1) problems.push(`卦序错误：${name} 记作第 ${d.seq} 卦，应为第 ${i + 1} 卦`);
+    });
+
+    const orphan = Object.keys(GUA_DATA).filter(n => !names.has(n));
+    if (orphan.length) problems.push(`多余的卦辞数据：${orphan.join("、")}`);
+
+    if (problems.length) console.error("[摇卦] 数据自检未通过：\n" + problems.join("\n"));
+    else console.info("[摇卦] 数据自检通过：64 卦齐全，卦序与上下卦无误。");
+  })();
+
+  /* =========================================================
+     三、铜钱起卦
+     ========================================================= */
+
+  // 等概率取 0/1（拒绝采样，避免 Math.random 的模偏差）
+  function randomBit() {
+    if (window.crypto && typeof crypto.getRandomValues === "function") {
+      const buf = new Uint8Array(1);
+      do { crypto.getRandomValues(buf); } while (buf[0] > 249);
+      return buf[0] & 1;
+    }
+    return Math.random() < 0.5 ? 0 : 1;
+  }
+
+  // 三枚铜钱：字(阳)=3，背(阴)=2；和值 6老阴 7少阳 8少阴 9老阳
+  const LINE_TYPES = {
+    6: { value: 6, yang: false, moving: true,  name: "老阴" },
+    7: { value: 7, yang: true,  moving: false, name: "少阳" },
+    8: { value: 8, yang: false, moving: false, name: "少阴" },
+    9: { value: 9, yang: true,  moving: true,  name: "老阳" }
+  };
+
+  function tossLine() {
+    let sum = 0;
+    for (let i = 0; i < 3; i++) sum += randomBit() ? 3 : 2;
+    return LINE_TYPES[sum];
+  }
+
+  // 由六爻求卦；lines[0] 为初爻
+  function resolveHexagram(lines) {
+    const bits = lines.map(l => (l.yang ? "1" : "0"));
+    const lower = TRIGRAMS[bits.slice(0, 3).join("")];
+    const upper = TRIGRAMS[bits.slice(3, 6).join("")];
+    const name = HEX_BY_TRIGRAMS.get(upper.name + lower.name);
+    const data = GUA_DATA[name];
+    return {
+      lines, upper, lower, name, data,
+      glyph: data ? String.fromCodePoint(0x4dc0 + data.seq - 1) : "？"
+    };
+  }
+
+  // 老阳变阴、老阴变阳
+  function flipIfMoving(line) {
+    return line.moving
+      ? { value: line.yang ? 6 : 9, yang: !line.yang, moving: false, name: line.yang ? "老阴" : "老阳" }
+      : line;
+  }
+
+  // 爻题：初九 / 六二 / 九三 / 上六 …
+  const POS = ["初", "二", "三", "四", "五", "上"];
+  function yaoTitle(index, yang) {
+    const num = yang ? "九" : "六";
+    if (index === 0) return "初" + num;
+    if (index === 5) return "上" + num;
+    return num + POS[index];
+  }
+
+  /* =========================================================
+     四、渲染
+     ========================================================= */
+  function buildLineRow(line, index, compact) {
+    const row = document.createElement("div");
+    row.className = "line-row" + (line.moving ? " is-moving" : "");
+
+    if (!compact) {
+      const label = document.createElement("span");
+      label.className = "line-label";
+      label.textContent = yaoTitle(index, line.yang);
+      row.appendChild(label);
+    }
+
+    const bars = document.createElement("span");
+    bars.className = "line-bars";
+    for (let k = 0, n = line.yang ? 1 : 2; k < n; k++) {
+      const bar = document.createElement("span");
+      bar.className = "bar";
+      bars.appendChild(bar);
+    }
+    row.appendChild(bars);
+
+    if (!compact) {
+      const mark = document.createElement("span");
+      mark.className = "move-mark";
+      mark.textContent = line.moving ? (line.yang ? "○" : "×") : "";
+      row.appendChild(mark);
+    }
+    return row;
+  }
+
+  function buildMiniHexagram(lines) {
+    const box = document.createElement("div");
+    box.className = "hexagram compact";
+    for (let i = lines.length - 1; i >= 0; i--) box.appendChild(buildLineRow(lines[i], i, true));
+    return box;
+  }
+
+  const CN_NUM = ["零", "一", "二", "三", "四", "五", "六"];
+
+  function buildInfo(primary, derived, lines) {
+    const sec = document.createElement("section");
+    sec.className = "info";
+
+    const d = primary.data || {};
+    const movingIdx = [];
+    lines.forEach((l, i) => { if (l.moving) movingIdx.push(i); });
+    const movingText = movingIdx.length
+      ? `${movingIdx.map(i => yaoTitle(i, lines[i].yang)).join("、")}（${CN_NUM[movingIdx.length]}爻动）`
+      : "无动爻，为静卦";
+
+    sec.innerHTML = `
+      <div class="gua-head">
+        <div class="gua-glyph" aria-hidden="true">${primary.glyph}</div>
+        <div>
+          <div class="gua-name">${primary.name}<span class="gua-seq">第 ${d.seq} 卦</span></div>
+          <div class="gua-struct">上卦 ${primary.upper.name}（${primary.upper.image}）· 下卦 ${primary.lower.name}（${primary.lower.image}）</div>
+        </div>
+      </div>
+      <dl class="detail">
+        <dt>卦辞</dt>
+        <dd>${d.guaci || "—"}</dd>
+        <dt>动爻</dt>
+        <dd>${movingText}</dd>
+        <dt>趣味参考</dt>
+        <dd>${d.hint || "—"}</dd>
+      </dl>
+      ${derived ? `
+      <div class="derived">
+        <div class="derived-title">之卦（变卦）</div>
+        <div class="derived-body">
+          <div class="derived-hex" data-slot="derived-hex"></div>
+          <div>
+            <div class="gua-name small">${derived.glyph} ${derived.name}<span class="gua-seq">第 ${derived.data.seq} 卦</span></div>
+            <div class="derived-text">${derived.data.guaci || "—"}</div>
+          </div>
+        </div>
+      </div>` : ""}
+    `;
+
+    if (derived) {
+      sec.querySelector('[data-slot="derived-hex"]').appendChild(buildMiniHexagram(derived.lines));
+    }
+    return sec;
+  }
+
+  /* =========================================================
+     五、交互
+     ========================================================= */
+  const btn = document.getElementById("shakeBtn");
+  const content = document.getElementById("content");
+  const card = document.querySelector(".result-card");
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+  let busy = false;
+
+  async function runShake() {
+    if (busy) return;
+    busy = true;
+    btn.disabled = true;
+    btn.setAttribute("aria-busy", "true");
+    btn.textContent = "摇卦中…";
+
+    try {
+      content.replaceChildren();
+      const board = document.createElement("div");
+      board.className = "hexagram";
+      content.appendChild(board);
+
+      if (!reduceMotion) {
+        card.classList.add("is-shaking");
+        setTimeout(() => card.classList.remove("is-shaking"), 420);
+      }
+
+      const lines = [];
+      for (let i = 0; i < 6; i++) {
+        const line = tossLine();
+        lines.push(line);
+        board.prepend(buildLineRow(line, i, false));   // 新爻生在上方，整体自下而上生长
+        await sleep(reduceMotion ? 0 : (i === 5 ? 360 : 220));
+      }
+
+      const legend = document.createElement("p");
+      legend.className = "line-legend";
+      legend.textContent = "○ 阳爻动　× 阴爻动";
+      content.appendChild(legend);
+
+      const primary = resolveHexagram(lines);
+      const hasMoving = lines.some(l => l.moving);
+      const derived = hasMoving ? resolveHexagram(lines.map(flipIfMoving)) : null;
+
+      content.appendChild(buildInfo(primary, derived, lines));
+    } catch (err) {
+      console.error("[摇卦] 渲染失败：", err);
+      content.replaceChildren();
+      const tip = document.createElement("div");
+      tip.className = "empty-tip";
+      tip.textContent = "摇卦出错了，请刷新页面后重试";
+      content.appendChild(tip);
+    } finally {
+      // 无论成功失败都要恢复按钮，避免界面卡在禁用状态
+      btn.disabled = false;
+      btn.removeAttribute("aria-busy");
+      btn.textContent = "再摇一卦";
+      busy = false;
+    }
+  }
+
+  btn.addEventListener("click", runShake);
+})();
+</script>
+</body>
+</html>
